@@ -2,3 +2,4 @@ streamlit
 together
 requests
 pillow
+deep-translator
