@@ -14,6 +14,9 @@ if "saved_files" not in st.session_state:
 
 if "generated" not in st.session_state:
     st.session_state.generated = False
+
+if "generated_images" not in st.session_state:
+    st.session_state.generated_images = []
     
 # =====================================
 # PAGE CONFIG
@@ -364,6 +367,10 @@ st.markdown(
 with st.sidebar:
 
     st.markdown("## ⚙️ Settings")
+    st.sidebar.info(
+        "You use your own Together AI API key. "
+        "Image generation cost depends on your Together account."
+    )
 
     api_key = st.text_input(
         "Together AI API Key",
@@ -494,7 +501,9 @@ if generate_btn:
     status = st.empty()
 
     image_cols = st.columns(3)
+
     st.session_state.saved_files = []
+    st.session_state.generated_images = []
 
     # loop generate
     for i, prompt in enumerate(prompts, 1):
@@ -512,7 +521,7 @@ if generate_btn:
     
             response = client.images.generate(
                 model=model,
-                prompt=prompt,
+                prompt=translated_prompt,
                 width=width,
                 height=height,
                 steps=steps
@@ -520,9 +529,12 @@ if generate_btn:
 
             image_url = response.data[0].url
 
-            img_data = requests.get(image_url).content
+            img_data = requests.get(
+                image_url,
+                timeout=30
+            ).content   
 
-            filename = OUTPUT_FOLDER / f"{i:03d}.png"
+            filename = OUTPUT_FOLDER / f"{int(time.time())}_{i:03d}.png"
 
             with open(filename, "wb") as f:
                 f.write(img_data)
@@ -531,20 +543,13 @@ if generate_btn:
 
             img = Image.open(filename)
 
-            with image_cols[(i - 1) % 3]:
+            st.session_state.generated_images.append({
+                "image": img,
+                "filename": filename,
+                "index": i
+            })
 
-                st.image(img, caption=f"{i:03d}")
-
-                st.session_state.saved_files.append(filename)
-
-                with open(filename, "rb") as file:
-                    st.download_button(
-                        label=f"⬇ Download {i:03d}",
-                        data=file,
-                        file_name=f"image_{i:03d}.png",
-                        mime="image/png",
-                        key=f"download_{i}"
-                    )
+            st.session_state.saved_files.append(filename)
 
         except Exception as e:
             st.error(f"Error prompt {i}: {e}")
@@ -555,31 +560,60 @@ if generate_btn:
 
     status.success("🎉 Semua gambar selesai dibuat!")
     st.session_state.generated = True
-    
-    # =====================================
-    # ZIP ALL DOWNLOAD
-    # =====================================
 
-    if st.session_state.generated and len(st.session_state.saved_files) > 0:
+# =====================================
+# ZIP ALL DOWNLOAD
+# =====================================
 
-        zip_buffer = io.BytesIO()
+if st.session_state.generated and len(st.session_state.saved_files) > 0:
 
-        with zipfile.ZipFile(zip_buffer, "w") as zipf:
+    zip_buffer = io.BytesIO()
 
-            for file_path in st.session_state.saved_files:
+    with zipfile.ZipFile(zip_buffer, "w") as zipf:
 
-                zipf.write(
-                    file_path,
-                    arcname=Path(file_path).name
+        for file_path in st.session_state.saved_files:
+
+            zipf.write(
+                file_path,
+                arcname=Path(file_path).name
+            )
+
+    zip_buffer.seek(0)
+
+    st.download_button(
+        label="📦 Download All Images (ZIP)",
+        data=zip_buffer,
+        file_name="generated_images.zip",
+        mime="application/zip",
+        key="download_zip"
+    )
+
+# =====================================
+# SHOW SAVED IMAGES AFTER RERUN
+# =====================================
+
+if st.session_state.generated_images:
+
+    st.markdown("---")
+    st.markdown("## 🖼️ Generated Images")
+
+    cols = st.columns(3)
+
+    for idx, item in enumerate(st.session_state.generated_images):
+
+        with cols[idx % 3]:
+
+            st.image(
+                item["image"],
+                caption=f'{item["index"]:03d}'
+            )
+
+            with open(item["filename"], "rb") as file:
+
+                st.download_button(
+                    label=f'⬇ Download {item["index"]:03d}',
+                    data=file,
+                    file_name=f'image_{item["index"]:03d}.png',
+                    mime="image/png",
+                    key=f"persistent_download_{idx}"
                 )
-
-        zip_buffer.seek(0)
-
-        st.download_button(
-            label="📦 Download All Images (ZIP)",
-            data=zip_buffer,
-            file_name="generated_images.zip",
-            mime="application/zip",
-            key="download_zip"
-        )
-   
