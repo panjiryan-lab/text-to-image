@@ -1,5 +1,6 @@
 import streamlit as st
 from together import Together
+from deep_translator import GoogleTranslator
 import requests
 from pathlib import Path
 from PIL import Image
@@ -494,7 +495,14 @@ if generate_btn:
         status.info(f"Generating {i}/{len(prompts)}")
 
         try:
+            
+            translated_prompt = GoogleTranslator(
+            source='auto',
+            target='en'
+            ).translate(prompt)
 
+            st.caption(f"EN Prompt: {translated_prompt}")
+    
             response = client.images.generate(
                 model=model,
                 prompt=prompt,
