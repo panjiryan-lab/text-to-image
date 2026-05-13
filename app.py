@@ -8,6 +8,13 @@ import time
 import zipfile
 import io
 
+# SESSION STATE
+if "saved_files" not in st.session_state:
+    st.session_state.saved_files = []
+
+if "generated" not in st.session_state:
+    st.session_state.generated = False
+    
 # =====================================
 # PAGE CONFIG
 # =====================================
@@ -487,7 +494,7 @@ if generate_btn:
     status = st.empty()
 
     image_cols = st.columns(3)
-    saved_files = []
+    st.session_state.saved_files = []
 
     # loop generate
     for i, prompt in enumerate(prompts, 1):
@@ -528,7 +535,7 @@ if generate_btn:
 
                 st.image(img, caption=f"{i:03d}")
 
-                saved_files.append(filename)
+                st.session_state.saved_files.append(filename)
 
                 with open(filename, "rb") as file:
                     st.download_button(
@@ -547,4 +554,32 @@ if generate_btn:
         time.sleep(1)
 
     status.success("🎉 Semua gambar selesai dibuat!")
+    st.session_state.generated = True
+    
+    # =====================================
+    # ZIP ALL DOWNLOAD
+    # =====================================
+
+    if st.session_state.generated and len(st.session_state.saved_files) > 0:
+
+        zip_buffer = io.BytesIO()
+
+        with zipfile.ZipFile(zip_buffer, "w") as zipf:
+
+            for file_path in st.session_state.saved_files:
+
+                zipf.write(
+                    file_path,
+                    arcname=Path(file_path).name
+                )
+
+        zip_buffer.seek(0)
+
+        st.download_button(
+            label="📦 Download All Images (ZIP)",
+            data=zip_buffer,
+            file_name="generated_images.zip",
+            mime="application/zip",
+            key="download_zip"
+        )
    
