@@ -4,6 +4,8 @@ import requests
 from pathlib import Path
 from PIL import Image
 import time
+import zipfile
+import io
 
 # =====================================
 # PAGE CONFIG
@@ -293,6 +295,24 @@ header[data-testid="stHeader"] {
 }
 
 /* =========================
+   DOWNLOAD BUTTON
+========================= */
+
+.stDownloadButton button {
+    background: linear-gradient(90deg, #7c3aed, #2563eb) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 12px !important;
+    padding: 10px 16px !important;
+    font-weight: 700 !important;
+    width: 100% !important;
+}
+
+.stDownloadButton button:hover {
+    opacity: 0.9;
+}
+
+/* =========================
    CARD
 ========================= */
 
@@ -451,8 +471,10 @@ if generate_btn:
         st.stop()
 
     # folder hasil
-    OUTPUT_FOLDER = "hasil"
-    Path(OUTPUT_FOLDER).mkdir(exist_ok=True)
+    BASE_DIR = Path(__file__).parent
+    OUTPUT_FOLDER = BASE_DIR / "hasil"
+
+    OUTPUT_FOLDER.mkdir(exist_ok=True)
 
     # client together
     client = Together(api_key=api_key)
@@ -464,6 +486,7 @@ if generate_btn:
     status = st.empty()
 
     image_cols = st.columns(3)
+    saved_files = []
 
     # loop generate
     for i, prompt in enumerate(prompts, 1):
@@ -484,15 +507,29 @@ if generate_btn:
 
             img_data = requests.get(image_url).content
 
-            filename = f"{OUTPUT_FOLDER}/{i:03d}.png"
+            filename = OUTPUT_FOLDER / f"{i:03d}.png"
 
             with open(filename, "wb") as f:
                 f.write(img_data)
+            
+            st.success(f"Saved: {filename}")
 
             img = Image.open(filename)
 
             with image_cols[(i - 1) % 3]:
+
                 st.image(img, caption=f"{i:03d}")
+
+                saved_files.append(filename)
+
+                with open(filename, "rb") as file:
+                    st.download_button(
+                        label=f"⬇ Download {i:03d}",
+                        data=file,
+                        file_name=f"image_{i:03d}.png",
+                        mime="image/png",
+                        key=f"download_{i}"
+                    )
 
         except Exception as e:
             st.error(f"Error prompt {i}: {e}")
@@ -502,3 +539,4 @@ if generate_btn:
         time.sleep(1)
 
     status.success("🎉 Semua gambar selesai dibuat!")
+   
