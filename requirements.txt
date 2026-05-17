@@ -3,3 +3,4 @@ together
 requests
 pillow
 deep-translator
+elevenlabs
