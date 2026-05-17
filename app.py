@@ -159,7 +159,44 @@ if generate_btn:
 
     status.success("🎉 Semua gambar selesai dibuat!")
     st.session_state.generated = True
+    
+    # =====================================
+    # ZIP ALL DOWNLOAD
+    # =====================================
+    if st.session_state.generated and len(st.session_state.saved_files) > 0:
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w") as zipf:
+            for file_path in st.session_state.saved_files:
+                zipf.write(file_path, arcname=Path(file_path).name)
+        zip_buffer.seek(0)
 
+        st.download_button(
+            label="📦 Download All Images (ZIP)",
+            data=zip_buffer,
+            file_name="generated_images.zip",
+            mime="application/zip",
+            key="download_zip"
+        )
+
+    # =====================================
+    # SHOW SAVED IMAGES AFTER RERUN
+    # =====================================
+    if st.session_state.generated_images:
+        st.markdown("---")
+        st.markdown("## 🖼️ Generated Images")
+
+        cols = st.columns(3)
+        for idx, item in enumerate(st.session_state.generated_images):
+            with cols[idx % 3]:
+                st.image(item["image"], caption=f'{item["index"]:03d}')
+                with open(item["filename"], "rb") as file:
+                    st.download_button(
+                        label=f'⬇ Download {item["index"]:03d}',
+                        data=file,
+                        file_name=f'image_{item["index"]:03d}.png',
+                        mime="image/png",
+                        key=f"persistent_download_{idx}"
+                    )
 # =====================================
 # AUDIO GENERATOR
 # =====================================
@@ -217,6 +254,7 @@ if generate_audio_btn:
         time.sleep(1)
 
     status_audio.success("🎉 Semua audio selesai dibuat!")
+
 
 # =====================================
 # SHOW AUDIOS
